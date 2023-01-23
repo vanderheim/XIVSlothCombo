@@ -40,6 +40,8 @@ namespace XIVSlothCombo.Combos.PvE
             Shadowbite = 16494,
             Ladonsbite = 25783,
             BlastArrow = 25784,
+
+            FootGraze = 7553,
             RadiantFinale = 25785;
 
         public static class Buffs
@@ -82,6 +84,86 @@ namespace XIVSlothCombo.Combos.PvE
         internal static bool SongIsNone(Song value) => value == Song.NONE;
         internal static bool SongIsWandererMinuet(Song value) => value == Song.WANDERER;
         #endregion
+
+        internal class BRD_NoBuffsBurstShot : CustomCombo
+        {
+            protected internal override CustomComboPreset Preset { get; } = CustomComboPreset.BRD_ST_SimpleMode;
+
+            protected override uint Invoke(uint actionID, uint lastComboMove, float comboTime, byte level)
+            {
+                if (actionID is FootGraze)
+                {
+                    BRDGauge? gauge = GetJobGauge<BRDGauge>();
+                    bool songArmy = gauge.Song == Song.ARMY;
+                    bool songWanderer = gauge.Song == Song.WANDERER;
+                    bool minuetReady = LevelChecked(WanderersMinuet) && IsOffCooldown(WanderersMinuet);
+                    bool balladReady = LevelChecked(MagesBallad) && IsOffCooldown(MagesBallad);
+                    bool paeonReady = LevelChecked(ArmysPaeon) && IsOffCooldown(ArmysPaeon);
+                    bool empyrealReady = LevelChecked(EmpyrealArrow) && IsOffCooldown(EmpyrealArrow);
+                    bool bloodletterReady = LevelChecked(Bloodletter) && IsOffCooldown(Bloodletter);
+                    bool sidewinderReady = LevelChecked(Sidewinder) && IsOffCooldown(Sidewinder);
+
+                    if (IsEnabled(CustomComboPreset.BRD_oGCDSongs) &&
+                        (gauge.SongTimer < 1 || songArmy))
+                    {
+                        if (minuetReady)
+                            return WanderersMinuet;
+                        if (balladReady)
+                            return MagesBallad;
+                        if (paeonReady)
+                            return ArmysPaeon;
+                    }
+
+                    if (songWanderer && gauge.Repertoire == 3)
+                        return OriginalHook(WanderersMinuet);
+                    if (empyrealReady)
+                        return EmpyrealArrow;
+                    if (bloodletterReady)
+                        return Bloodletter;
+                    if (sidewinderReady)
+                        return Sidewinder;
+
+                    if (!IsEnabled(CustomComboPreset.BRD_Apex))
+                    {
+                        if (!IsEnabled(CustomComboPreset.BRD_RemoveApexArrow) && gauge.SoulVoice == 100)
+                            return ApexArrow;
+                        if (LevelChecked(BlastArrow) && HasEffect(Buffs.BlastArrowReady))
+                            return BlastArrow;
+                    }
+
+                    if (!IsEnabled(CustomComboPreset.BRD_DoTMaintainance))
+                    {
+                        bool venomous = TargetHasEffect(Debuffs.VenomousBite);
+                        bool windbite = TargetHasEffect(Debuffs.Windbite);
+                        bool caustic = TargetHasEffect(Debuffs.CausticBite);
+                        bool stormbite = TargetHasEffect(Debuffs.Stormbite);
+                        float venomRemaining = GetDebuffRemainingTime(Debuffs.VenomousBite);
+                        float windRemaining = GetDebuffRemainingTime(Debuffs.Windbite);
+                        float causticRemaining = GetDebuffRemainingTime(Debuffs.CausticBite);
+                        float stormRemaining = GetDebuffRemainingTime(Debuffs.Stormbite);
+
+                        if (InCombat())
+                        {
+                            if (LevelChecked(IronJaws) &&
+                                ((venomous && venomRemaining < 4) || (caustic && causticRemaining < 4)) ||
+                                (windbite && windRemaining < 4) || (stormbite && stormRemaining < 4))
+                                return IronJaws;
+                            if (!LevelChecked(IronJaws) && venomous && venomRemaining < 4)
+                                return VenomousBite;
+                            if (!LevelChecked(IronJaws) && windbite && windRemaining < 4)
+                                return Windbite;
+                        }
+                    }
+
+                    if (HasEffect(Buffs.StraightShotReady))
+                        return LevelChecked(RefulgentArrow)
+                            ? RefulgentArrow
+                            : StraightShot;
+                }
+
+                return BurstShot;
+            }
+        }
 
         // Replace HS/BS with SS/RA when procced.
         internal class BRD_StraightShotUpgrade : CustomCombo
